@@ -34,7 +34,7 @@ async def on_guild_join(guild):
 
 @client.event
 async def on_message(message):
-    await on_guild_join(message.guild)
+
     if message.author == client.user:
         return
 
