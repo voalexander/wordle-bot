@@ -93,19 +93,19 @@ async def on_message(message):
             return
 
         if score == 1:
-            await message.channel.send("Uh... you should probably go buy a lottery ticket...")
+            await message.channel.send("...sus")
         elif score == 2:
-            await message.channel.send("Wow! That's impressive!")
+            await message.channel.send("legend")
         elif score == 3:
-            await message.channel.send("Very nice!")
+            await message.channel.send("nice")
         elif score == 4:
-            await message.channel.send("Not bad!")
+            await message.channel.send("meh")
         elif score == 5:
             await message.channel.send("Unlucky...")
         elif score == 6:
-            await message.channel.send("Cutting it a little close there...")
+            await message.channel.send("lol u suck")
         else:
-            await message.channel.send("I will pretend like I didn't see that one...")
+            await message.channel.send(".....LOL")
 
 
 def rankings_by_average(message, n: int) -> str:
