@@ -15,9 +15,26 @@ database = data.Client()
 async def on_ready():
     print('We have logged in as {0.user}'.format(client))
 
+@client.event
+async def on_guild_join(guild):
+    print("New server.\nGetting message history")
+    for channel in guild.text_channels:
+        async for message in channel.history(limit=10000):
+            if re.match(r"Wordle [0-9]+ [1-6|X]/6", message.content) is not None:
+                # extract the Wordle number from message
+                wordle = message.content.splitlines()[0].split(" ")[1]
+                # extract the score from message
+                score = message.content.splitlines()[0].split(" ")[2][0]
+                if score == "X":
+                    score = "7"
+                score = int(score)
+
+                if database.add_score(message.author.id, wordle, score):
+                    print("Added {0};{1} for {2}".format(wordle, score, message.author))
 
 @client.event
 async def on_message(message):
+    await on_guild_join(message.guild)
     if message.author == client.user:
         return
 
@@ -41,15 +58,15 @@ async def on_message(message):
         await message.channel.send(rankings_by_games_played(message, 10))
 
     if message.content == "!wb deletemydata":
+        await message.channel.send("I'm lazy to update this. Your data and shameful history is mine forever.")
+        """
         if database.delete_player(message.author.id):
             await message.channel.send(
                 f"{message.author.nick if message.author.nick is not None else message.author.name}'s "
                 f"data has been deleted.")
         else:
             await message.channel.send("I tried to delete your data, but I couldn't find any data for you!")
-
-    if message.content == "!wb helper":
-        await message.channel.send('https://www.spalmurray.com/wordle-helper')
+        """
 
     if message.content == "!wb help" or message.content == "!wb":
         help_string = "`!wb help` to see this message\n" \
