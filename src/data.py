@@ -121,7 +121,5 @@ class Client:
 
     def delete_player(self, pid: int) -> bool:
         """Return True iff the player with pid was successfully deleted."""
-        result = self.db.players.delete_one({"_id": pid})
-        if result.deleted_count != 0:
-            return True
-        return False
+        self.sql.execute("DELETE FROM PLAYER WHERE pid == " + str(pid))
+        return True
