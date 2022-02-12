@@ -62,18 +62,12 @@ async def on_message(message):
 
     if message.content == "!wb deletemydata":
         await message.channel.send("I'm lazy to update this. Your data and shameful history is mine forever.")
-        """
-        if database.delete_player(message.author.id):
-            await message.channel.send(
-                f"{message.author.nick if message.author.nick is not None else message.author.name}'s "
-                f"data has been deleted.")
-        else:
-            await message.channel.send("I tried to delete your data, but I couldn't find any data for you!")
-        """
 
     if message.content == "!wb scanHistory":
         updateCnt = await get_score_history(message.guild)
         await message.channel.send("Scanned history.\n" + str(updateCnt) + " scores added.")
+        if updateCnt != 0:
+            await update_all_roles(message.guild)
     
     if message.content == "!wb updateRoles":
         await update_all_roles(message.guild,message)
@@ -169,7 +163,7 @@ async def update_role(guild, member, scores):
     await member.edit(roles=newRoles)
     return
 
-async def update_all_roles(guild, message) -> None:
+async def update_all_roles(guild) -> None:
     scores = []
     for member in guild.members:
         score = database.get_player_stats(member.id)
