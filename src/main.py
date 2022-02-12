@@ -1,7 +1,10 @@
+from turtle import color
 import configuration
 import data
 import discord
 import re
+import random
+import math
 
 intents = discord.Intents.default()
 intents.members = True
@@ -10,6 +13,18 @@ client = discord.Client(intents=intents)
 
 database = data.Client()
 
+compliments = ["nice", "good stuff", "legend", "good shit", "excellent"]
+insults = ["nice.", "lol", "LOSER", "lmao", ":^) nice one", "havin a rough day?"]
+roleColors = {
+    6 :   discord.Color.from_rgb(43, 28, 26), # poo brown
+    5 :   discord.Color.from_rgb(73, 48, 45), # brighter poo brown
+    4.5 : discord.Color.from_rgb(155, 103, 60), # just brown
+    4.0 : discord.Color.dark_blue(),
+    3.5 : discord.Color.red(),
+    3.0 : discord.Color.gold(),
+    2.5 : discord.Color.teal(),
+    0 : discord.Color.magenta()
+}
 
 @client.event
 async def on_ready():
@@ -18,19 +33,7 @@ async def on_ready():
 @client.event
 async def on_guild_join(guild):
     print("New server.\nGetting message history")
-    for channel in guild.text_channels:
-        async for message in channel.history(limit=10000):
-            if re.match(r"Wordle [0-9]+ [1-6|X]/6", message.content) is not None:
-                # extract the Wordle number from message
-                wordle = message.content.splitlines()[0].split(" ")[1]
-                # extract the score from message
-                score = message.content.splitlines()[0].split(" ")[2][0]
-                if score == "X":
-                    score = "7"
-                score = int(score)
-
-                if database.add_score(message.author.id, wordle, score):
-                    print("Added {0};{1} for {2}".format(wordle, score, message.author))
+    await get_score_history(guild)
 
 @client.event
 async def on_message(message):
@@ -68,6 +71,13 @@ async def on_message(message):
             await message.channel.send("I tried to delete your data, but I couldn't find any data for you!")
         """
 
+    if message.content == "!wb scanHistory":
+        updateCnt = await get_score_history(message.guild)
+        await message.channel.send("Scanned history.\n" + str(updateCnt) + " scores added.")
+    
+    if message.content == "!wb updateRoles":
+        await update_all_roles(message.guild,message)
+
     if message.content == "!wb help" or message.content == "!wb":
         help_string = "`!wb help` to see this message\n" \
                       "`!wb me` to see your stats\n" \
@@ -87,6 +97,9 @@ async def on_message(message):
         score = int(score)
 
         result = database.add_score(message.author.id, wordle, score)
+        if result:
+            scores = database.get_player_stats(message.author.id)
+            await update_role(message.guild, message.author, scores)
 
         if not result:
             await message.channel.send("You've already submitted a score for this Wordle.")
@@ -95,18 +108,76 @@ async def on_message(message):
         if score == 1:
             await message.channel.send("...sus")
         elif score == 2:
-            await message.channel.send("legend")
-        elif score == 3:
-            await message.channel.send("nice")
-        elif score == 4:
-            await message.channel.send("meh")
-        elif score == 5:
-            await message.channel.send("Unlucky...")
+            await message.channel.send(compliments[random.randint(0,len(compliments)-1)])
         elif score == 6:
-            await message.channel.send("lol u suck")
+            await message.channel.send(insults[random.randint(0,len(insults)-1)])
         else:
-            await message.channel.send(".....LOL")
+            await message.channel.send(insults[random.randint(0,len(insults)-1)])
 
+async def get_score_history(guild) -> int:
+    scoreHistCnt = 0
+    for channel in guild.text_channels:
+        async for message in channel.history(limit=10000):
+            if re.match(r"Wordle [0-9]+ [1-6|X]/6", message.content) is not None:
+                # extract the Wordle number from message
+                wordle = message.content.splitlines()[0].split(" ")[1]
+                # extract the score from message
+                score = message.content.splitlines()[0].split(" ")[2][0]
+                if score == "X":
+                    score = "7"
+                score = int(score)
+
+                if database.add_score(message.author.id, wordle, score):
+                    print("Added {0};{1} for {2}".format(wordle, score, message.author))
+                    scoreHistCnt += 1
+    return scoreHistCnt
+
+def avgToTier(avg):
+    prev = 0
+    for key in reversed(roleColors):
+        if avg <= key and avg >= prev:
+            return key
+        prev = key
+
+async def update_role(guild, member, scores):
+    # Remove existing roles
+    for role in member.roles:
+        if len(role.members) == 1:
+            try:
+                await role.delete()
+            except:
+                pass
+    await member.edit(roles=[])
+
+    existRoles = await guild.fetch_roles()
+    existRolesKey = {}
+    for role in existRoles:
+        existRolesKey[role.name]=role
+    avgTitle = "Avg: " + str(round_down(scores[0]))
+    gamesTitle = "Games: " + str(scores[1])
+    wrTitle = "Winrate: " + str(round(scores[3] * 100, 2)) + "%"
+    newRoles = []
+    if avgTitle not in existRolesKey:
+        newRoleAvg = await guild.create_role(name=avgTitle, color=roleColors[avgToTier(scores[0])])
+        newRoles.append(newRoleAvg)
+    if gamesTitle not in existRolesKey:
+        newRoleGames = await guild.create_role(name=gamesTitle)
+        newRoles.append(newRoleGames)
+    if wrTitle not in existRolesKey:
+        newRoleWR = await guild.create_role(name=wrTitle)
+        newRoles.append(newRoleWR)
+    await member.edit(roles=newRoles)
+    return
+
+async def update_all_roles(guild, message) -> None:
+    scores = []
+    for member in guild.members:
+        score = database.get_player_stats(member.id)
+        if score[0] == 0:
+            continue
+        scores.append((member.id, score))
+        await update_role(guild, member, score)
+    return
 
 def rankings_by_average(message, n: int) -> str:
     """Return string formatted leaderboard ordered by average guesses where message is the message data from the
@@ -176,6 +247,19 @@ def rankings_by_games_played(message, n: int) -> str:
 
     return scoreboard
 
+def round_down(number:float, decimals:int=2):
+    """
+    Returns a value rounded down to a specific number of decimal places.
+    """
+    if not isinstance(decimals, int):
+        raise TypeError("decimal places must be an integer")
+    elif decimals < 0:
+        raise ValueError("decimal places has to be 0 or more")
+    elif decimals == 0:
+        return math.floor(number)
+
+    factor = 10 ** decimals
+    return math.floor(number * factor) / factor
 
 if __name__ == "__main__":
     config = configuration.Config()

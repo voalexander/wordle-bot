@@ -3,7 +3,7 @@ import sqlite3 as sl
 
 
 class Client:
-    """Data access interface for MongoDB database for use with wordle-bot.
+    """Data access interface for sqlite database for use with wordle-bot.
 
     The database has collections this collection:
 
@@ -16,7 +16,7 @@ class Client:
     """
 
     def __init__(self):
-        """Initialize a new Client connected to the local MongoDB instance."""
+        """Initialize a new Client connected to the sqlite."""
         self.sql = sl.connect("wordle.db")
         self.checkAndCreateTable()
 
@@ -51,7 +51,7 @@ class Client:
         playerScore = {}
         scores = playerData[1].split("|")
         for score in scores:
-            if score is not "":
+            if score != "":
                 score = score.split(";")
                 playerScore[score[0]] = score[1]
         player = {
