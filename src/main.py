@@ -154,14 +154,21 @@ async def update_role(guild, member, scores):
     newRoles = []
     if avgTitle not in existRolesKey:
         newRoleAvg = await guild.create_role(name=avgTitle, color=roleColors[avgToTier(scores[0])])
-        newRoles.append(newRoleAvg)
+    else:
+        newRoleAvg = existRolesKey[avgTitle]
+
     if gamesTitle not in existRolesKey:
         newRoleGames = await guild.create_role(name=gamesTitle)
-        newRoles.append(newRoleGames)
+    else:
+        newRoleGames = existRolesKey[gamesTitle]
+
     if wrTitle not in existRolesKey:
         newRoleWR = await guild.create_role(name=wrTitle)
-        newRoles.append(newRoleWR)
-    await member.edit(roles=newRoles)
+    else:
+        newRoleWR = existRolesKey[wrTitle]
+
+    await member.edit(roles=[newRoleAvg, newRoleGames, newRoleWR])
+
     return
 
 async def update_all_roles(guild) -> None:
