@@ -68,6 +68,7 @@ async def on_message(message):
         await message.channel.send("Scanned history.\n" + str(updateCnt) + " scores added.")
         if updateCnt != 0:
             await update_all_roles(message.guild)
+            await message.channel.send("Updated roles.")
     
     if message.content == "!wb updateRoles":
         await update_all_roles(message.guild,message)
@@ -105,7 +106,7 @@ async def on_message(message):
             await message.channel.send(compliments[random.randint(0,len(compliments)-1)])
         elif score == 6:
             await message.channel.send(insults[random.randint(0,len(insults)-1)])
-        else:
+        elif score not in [3,4,5]:
             await message.channel.send(insults[random.randint(0,len(insults)-1)])
 
 async def get_score_history(guild) -> int:
