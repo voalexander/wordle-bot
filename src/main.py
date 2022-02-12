@@ -71,7 +71,7 @@ async def on_message(message):
             await message.channel.send("Updated roles.")
     
     if message.content == "!wb updateRoles":
-        await update_all_roles(message.guild,message)
+        await update_all_roles(message.guild)
 
     if message.content == "!wb help" or message.content == "!wb":
         help_string = "`!wb help` to see this message\n" \
