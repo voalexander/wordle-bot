@@ -63,12 +63,14 @@ async def on_message(message):
     if message.content == "!wb deletemydata":
         await message.channel.send("I'm lazy to update this. Your data and shameful history is mine forever.")
 
-    if message.content == "!wb scanHistory":
+    if message.content == "!wb updateData":
         updateCnt = await get_score_history(message.guild)
         await message.channel.send("Scanned history.\n" + str(updateCnt) + " scores added.")
         if updateCnt != 0:
             await update_all_roles(message.guild)
             await message.channel.send("Updated roles.")
+        numSorted = sort_scores(message.guild)
+        await message.channel.send("Sorted " + str(numSorted) + " records")
     
     if message.content == "!wb updateRoles":
         await update_all_roles(message.guild)
@@ -127,6 +129,12 @@ async def get_score_history(guild) -> int:
                     scoreHistCnt += 1
     return scoreHistCnt
 
+def sort_scores(guild):
+    numSorted = 0
+    for member in guild.members:
+        numSorted += database.sortScores(member.id)
+    return numSorted
+
 def avgToTier(avg):
     if avg == 7:
         avg = 6
@@ -153,7 +161,7 @@ async def update_role(guild, member, scores):
     avgTitle = "Avg: " + str(round_down(scores[0]))
     gamesTitle = "Games: " + str(scores[1])
     wrTitle = "Winrate: " + str(round(scores[3] * 100, 2)) + "%"
-    newRoles = []
+
     if avgTitle not in existRolesKey:
         newRoleAvg = await guild.create_role(name=avgTitle, color=roleColors[avgToTier(scores[0])])
     else:
@@ -205,7 +213,6 @@ def rankings_by_average(message, n: int) -> str:
 
     return scoreboard
 
-
 def rankings_by_win_rate(message, n: int) -> str:
     """Return string formatted leaderboard ordered by win rate where message is the message data from the
     triggering Discord message and n is the max number of rankings to return.
@@ -227,7 +234,6 @@ def rankings_by_win_rate(message, n: int) -> str:
         i += 1
 
     return scoreboard
-
 
 def rankings_by_games_played(message, n: int) -> str:
     """Return string formatted leaderboard ordered by number of games played where message is the message data from the

@@ -1,5 +1,6 @@
 from typing import Dict, Tuple, List
 import sqlite3 as sl
+import collections
 
 
 class Client:
@@ -53,7 +54,8 @@ class Client:
         for score in scores:
             if score != "":
                 score = score.split(";")
-                playerScore[score[0]] = score[1]
+                playerScore[int(score[0])] = int(score[1])
+        playerScore = collections.OrderedDict(sorted(playerScore.items()))
         player = {
             "pid": playerData[0],
             "scores": playerScore,
@@ -63,6 +65,17 @@ class Client:
             "win_rate": playerData[5]
         }
         return player
+    
+    def sortScores(self,pid):
+        player = self.findPlayer(pid)
+        if player is not None:
+            newScore = list(player["scores"].items())
+            newScore.sort()
+            player["scores"] = collections.OrderedDict(newScore)
+            self.createOrUpdatePlayer(player)
+            print("Updated")
+            return 1
+        return 0
 
     def createOrUpdatePlayer(self,player) -> Dict:
         sql = "INSERT OR REPLACE INTO PLAYER (pid, scores, count, win_count, average, win_rate) values(?, ?, ?, ?, ?, ?)"
@@ -84,7 +97,7 @@ class Client:
     def add_score(self, pid: int, wordle: str, score: int) -> bool:
         """Adds a score to the relevant player in the database. If a score already exists, return False."""
         player = self.findPlayer(pid)
-        if player is not None and wordle in player["scores"]:
+        if player is not None and int(wordle) in player["scores"]:
             return False
 
         if player is None:
@@ -98,7 +111,10 @@ class Client:
                 "win_rate": 0
             }
 
-        player["scores"][wordle] = score
+        newScore = list(player["scores"].items())
+        newScore.append((int(wordle),int(score)))
+        newScore.sort()
+        player["scores"] = collections.OrderedDict(newScore)
         player["count"] += 1
         player["win_count"] = player["win_count"] if score == 7 else player["win_count"] + 1
         player["average"] = player["average"] + (score - player["average"]) / (player["count"])
