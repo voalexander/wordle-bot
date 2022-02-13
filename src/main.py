@@ -128,6 +128,8 @@ async def get_score_history(guild) -> int:
     return scoreHistCnt
 
 def avgToTier(avg):
+    if avg == 7:
+        avg = 6
     prev = 0
     for key in reversed(roleColors):
         if avg <= key and avg >= prev:
