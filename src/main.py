@@ -5,6 +5,8 @@ import discord
 import re
 import random
 import math
+import matplotlib.pyplot as plt
+import numpy as np
 
 intents = discord.Intents.default()
 intents.members = True
@@ -34,6 +36,8 @@ async def on_ready():
 async def on_guild_join(guild):
     print("New server.\nGetting message history")
     await get_score_history(guild)
+    await update_all_roles(guild)
+    sort_scores(guild)
 
 @client.event
 async def on_message(message):
@@ -50,6 +54,7 @@ async def on_message(message):
         stats_string = f"{player}'s average number of guesses is {round(stats[0], 4)}. They've played {stats[1]} " \
                        f"games and won {stats[2]} games, making their win rate {round(stats[3] * 100, 4)}%."
         await message.channel.send(stats_string)
+        await message.channel.send(file=getGraph(message.author.id))
 
     if message.content == "!wb average":
         await message.channel.send(rankings_by_average(message, 10))
@@ -74,6 +79,7 @@ async def on_message(message):
     
     if message.content == "!wb updateRoles":
         await update_all_roles(message.guild)
+        await message.channel.send("Updated roles.")
 
     if message.content == "!wb help" or message.content == "!wb":
         help_string = "`!wb help` to see this message\n" \
@@ -143,6 +149,39 @@ def avgToTier(avg):
         if avg <= key and avg >= prev:
             return key
         prev = key
+    return 6
+
+def getGraph(id):
+    z = np.linspace(1,6,100)
+    stats = database.findPlayer(id)
+    x = []
+    rawY = []
+    keys = list(stats["scores"].keys())
+    cnt=0
+    for key in keys:
+        rawY.append(stats["scores"][key])
+        x.append(cnt)
+        cnt+=1
+    x = np.array(x)
+    rawY = np.array(rawY)
+    y = []
+    total = 0
+    for yVal in rawY:
+        total += yVal
+        if len(y) != 0:
+            y.append(total / (len(y) + 1))
+        else:
+            y.append(total)
+    y = np.array(y)
+    plt.style.use('dark_background')
+    plt.plot(x,y)
+    plt.title("Average Over " + str(stats["count"]) + " Games")
+    plt.grid(True)
+    plt.ylabel("Average Number of Guesses")
+    plt.xlabel("Number of Games")
+    plt.savefig("tmp.png")
+    plt.clf()
+    return discord.File(open("tmp.png", "rb"))
 
 async def update_role(guild, member, scores):
     # Remove existing roles
