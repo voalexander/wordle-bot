@@ -246,7 +246,7 @@ def rankings_by_average(message, n: int) -> str:
 
     scoreboard = "Rankings by average number of guesses:"
     i = 0
-    while i < n and i != len(scores):
+    while i != len(scores):
         scoreboard += f"\n{i + 1}. {scores[i][0]} ({round(scores[i][1][0], 4)})"
         i += 1
 
@@ -268,7 +268,7 @@ def rankings_by_win_rate(message, n: int) -> str:
 
     scoreboard = "Rankings by win rate:"
     i = 0
-    while i < n and i != len(scores):
+    while i != len(scores):
         scoreboard += f"\n{i + 1}. {scores[i][0]} ({round(scores[i][1][3] * 100, 4)}%)"
         i += 1
 
@@ -290,7 +290,7 @@ def rankings_by_games_played(message, n: int) -> str:
 
     scoreboard = "Rankings by games played:"
     i = 0
-    while i < n and i != len(scores):
+    while i != len(scores):
         scoreboard += f"\n{i + 1}. {scores[i][0]} ({scores[i][1][1]})"
         i += 1
 
