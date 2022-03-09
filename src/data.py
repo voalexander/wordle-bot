@@ -131,9 +131,9 @@ class Client:
         player = self.findPlayer(pid)
 
         if player is None:
-            return 0.0, 0, 0, 0
+            return 0.0, 0, 0, 0, None
 
-        return player["average"], player["count"], player["win_count"], player["win_rate"]
+        return player["average"], player["count"], player["win_count"], player["win_rate"], player["scores"]
 
     def delete_player(self, pid: int) -> bool:
         """Return True iff the player with pid was successfully deleted."""

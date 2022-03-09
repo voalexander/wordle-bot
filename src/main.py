@@ -7,6 +7,10 @@ import random
 import math
 import matplotlib.pyplot as plt
 import numpy as np
+import asyncio
+import aiocron
+import datetime
+from datetime import date
 
 intents = discord.Intents.default()
 intents.members = True
@@ -31,6 +35,7 @@ roleColors = {
 @client.event
 async def on_ready():
     print('We have logged in as {0.user}'.format(client))
+    nightly.start()
 
 @client.event
 async def on_guild_join(guild):
@@ -217,6 +222,7 @@ async def update_role(guild, member, scores):
         newRoleWR = existRolesKey[wrTitle]
 
     await member.edit(roles=[newRoleAvg, newRoleGames, newRoleWR])
+    await updateInactiveMember(guild, member)
 
     return
 
@@ -230,25 +236,96 @@ async def update_all_roles(guild) -> None:
         await update_role(guild, member, score)
     return
 
+@aiocron.crontab('0 */24 * * *')
+async def nightly():
+    print(date.today())
+    for guild in client.guilds:
+        existRoles = await guild.fetch_roles()
+        existRolesKey = {}
+        inactiveRoleName = "Inactive Loser"
+        for role in existRoles:
+            existRolesKey[role.name]=role.id
+        if inactiveRoleName not in existRolesKey:
+            inactiveRole = await guild.create_role(name=inactiveRoleName, color=discord.Color.from_rgb(74, 65, 42))
+        else:
+            inactiveRole = guild.get_role(existRolesKey[inactiveRoleName])
+        for member in guild.members:
+            data = database.get_player_stats(member.id)
+            if data[4] is not None:
+                await updateInactiveMember(guild, member)
+
+    return
+
+async def updateInactiveMember(guild, member):
+    existRoles = await guild.fetch_roles()
+    existRolesKey = {}
+    inactiveRoleName = "Inactive Loser"
+    for role in existRoles:
+        existRolesKey[role.name]=role.id
+    if inactiveRoleName not in existRolesKey:
+        inactiveRole = await guild.create_role(name=inactiveRoleName, color=discord.Color.from_rgb(74, 65, 42))
+    else:
+        inactiveRole = guild.get_role(existRolesKey[inactiveRoleName])
+    if isMemberActive(member)==False:
+        if inactiveRole not in member.roles:
+            allRoles = await guild.fetch_roles()
+            numRoles = len(allRoles)
+            await inactiveRole.edit(position=numRoles-2)
+            await member.add_roles(inactiveRole)
+            print(member.name + " is inactive")
+    else:
+        if inactiveRole in member.roles:
+            await member.remove_roles(inactiveRole)
+            print(member.name + " is no longer inactive")
+
+def isMemberActive(member) -> bool:
+    currWordle = getCurrentWordle()
+    data = database.get_player_stats(member.id)
+    if next(reversed(data[4])) >= currWordle:
+        return True
+    return ((getCurrentWordle() - next(reversed(data[4]))) <= 4)
+
+def getCurrentWordle() -> int:
+    return int((date.today()-date(2021, 6, 19)).days)
+
 def rankings_by_average(message, n: int) -> str:
     """Return string formatted leaderboard ordered by average guesses where message is the message data from the
     triggering Discord message and n is the max number of rankings to return.
     """
-    members = [(member.nick if member.nick is not None else member.name, member.id)
+    members = [(member if member is not None else member.name, member.id)
                for member in message.guild.members]
     scores = []
-    for member in members:
-        score = database.get_player_stats(member[1])
-        if score[0] == 0:
-            continue
-        scores.append((member[0], score))
+    scoresInactive = []
+    for member in message.guild.members:
+        data = database.get_player_stats(member.id)
+        if data[4] is not None:
+            if isMemberActive(member):
+                score = database.get_player_stats(member.id)
+                if score[0] == 0:
+                    continue
+                scores.append((member.name, score))
+            else:
+                score = database.get_player_stats(member.id)
+                if score[0] == 0:
+                    continue
+                scoresInactive.append((member.name, score))
     scores.sort(key=lambda x: x[1][0])
+    scoresInactive.sort(key=lambda x: x[1][0])
 
-    scoreboard = "Rankings by average number of guesses:"
-    i = 0
-    while i != len(scores):
-        scoreboard += f"\n{i + 1}. {scores[i][0]} ({round(scores[i][1][0], 4)})"
-        i += 1
+    scoreboard=""
+    if len(scores) > 0:
+        scoreboard += "Rankings by average number of guesses:"
+        i = 0
+        while i != len(scores):
+            scoreboard += f"\n{i + 1}. {scores[i][0]} ({round(scores[i][1][0], 4)})"
+            i += 1
+    if len(scoresInactive) > 0:
+        scoreboard += "Inactive loser average number of guesses rankings:"
+        i = 0
+        while i != len(scoresInactive):
+            scoreboard += f"\n{i + 1}. {scoresInactive[i][0]} ({round(scoresInactive[i][1][0], 4)})"
+            i += 1
+    
 
     return scoreboard
 
@@ -256,43 +333,78 @@ def rankings_by_win_rate(message, n: int) -> str:
     """Return string formatted leaderboard ordered by win rate where message is the message data from the
     triggering Discord message and n is the max number of rankings to return.
     """
-    members = [(member.nick if member.nick is not None else member.name, member.id)
+    members = [(member if member is not None else member.name, member.id)
                for member in message.guild.members]
     scores = []
-    for member in members:
-        score = database.get_player_stats(member[1])
-        if score[0] == 0:
-            continue
-        scores.append((member[0], score))
+    scoresInactive = []
+    for member in message.guild.members:
+        data = database.get_player_stats(member.id)
+        if data[4] is not None:
+            if isMemberActive(member):
+                score = database.get_player_stats(member.id)
+                if score[0] == 0:
+                    continue
+                scores.append((member.name, score))
+            else:
+                score = database.get_player_stats(member.id)
+                if score[0] == 0:
+                    continue
+                scoresInactive.append((member.name, score))
     scores.sort(key=lambda x: x[1][3], reverse=True)
+    scoresInactive.sort(key=lambda x: x[1][3], reverse=True)
 
-    scoreboard = "Rankings by win rate:"
-    i = 0
-    while i != len(scores):
-        scoreboard += f"\n{i + 1}. {scores[i][0]} ({round(scores[i][1][3] * 100, 4)}%)"
-        i += 1
-
+    scoreboard=""
+    if len(scores) > 0:
+        scoreboard += "Rankings by win rate:"
+        i = 0
+        while i != len(scores):
+            scoreboard += f"\n{i + 1}. {scores[i][0]} ({round(scores[i][1][3] * 100, 4)}%)"
+            i += 1
+    if len(scoresInactive) > 0:
+        scoreboard += "Inactive loser win rate rankings:"
+        i = 0
+        while i != len(scoresInactive):
+            scoreboard += f"\n{i + 1}. {scoresInactive[i][0]} ({round(scoresInactive[i][1][3] * 100, 4)}%)"
+            i += 1
     return scoreboard
 
 def rankings_by_games_played(message, n: int) -> str:
     """Return string formatted leaderboard ordered by number of games played where message is the message data from the
     triggering Discord message and n is the max number of rankings to return.
     """
-    members = [(member.nick if member.nick is not None else member.name, member.id)
+    members = [(member if member is not None else member.name, member.id)
                for member in message.guild.members]
     scores = []
-    for member in members:
-        score = database.get_player_stats(member[1])
-        if score[0] == 0:
-            continue
-        scores.append((member[0], score))
+    scoresInactive = []
+    for member in message.guild.members:
+        data = database.get_player_stats(member.id)
+        if data[4] is not None:
+            if isMemberActive(member):
+                score = database.get_player_stats(member.id)
+                if score[0] == 0:
+                    continue
+                scores.append((member.name, score))
+            else:
+                score = database.get_player_stats(member.id)
+                if score[0] == 0:
+                    continue
+                scoresInactive.append((member.name, score))
     scores.sort(key=lambda x: x[1][1], reverse=True)
+    scoresInactive.sort(key=lambda x: x[1][1], reverse=True)
 
-    scoreboard = "Rankings by games played:"
-    i = 0
-    while i != len(scores):
-        scoreboard += f"\n{i + 1}. {scores[i][0]} ({scores[i][1][1]})"
-        i += 1
+    scoreboard=""
+    if len(scores) > 0:
+        scoreboard += "Rankings by games played:"
+        i = 0
+        while i != len(scores):
+            scoreboard += f"\n{i + 1}. {scores[i][0]} ({scores[i][1][1]})"
+            i += 1
+    if len(scoresInactive) > 0:
+        scoreboard += "Inactive loser games played rankings:"
+        i = 0
+        while i != len(scoresInactive):
+            scoreboard += f"\n{i + 1}. {scoresInactive[i][0]} ({scoresInactive[i][1][1]})"
+            i += 1
 
     return scoreboard
 
