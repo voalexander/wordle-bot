@@ -410,7 +410,7 @@ def rankings_by_games_played(message, n: int) -> str:
         i = 0
         while i != len(scoresInactive):
             scoreboard += f"\n{i + 1}. {scoresInactive[i][0]} ({scoresInactive[i][1][1]})"
-            scoreboard += f"Last Played: {getLastPlayed(scoresInactive[i][1])} days ago."
+            scoreboard += f"\n   Last Played: {getLastPlayed(scoresInactive[i][1])} days ago."
             i += 1
 
     return scoreboard
