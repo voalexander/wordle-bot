@@ -283,7 +283,10 @@ def isMemberActive(member) -> bool:
     data = database.get_player_stats(member.id)
     if next(reversed(data[4])) >= currWordle:
         return True
-    return ((getCurrentWordle() - next(reversed(data[4]))) <= 4)
+    return ((currWordle - next(reversed(data[4]))) <= 4)
+
+def getLastPlayed(memberData) -> int:
+    return getCurrentWordle() - next(reversed(memberData[4]))
 
 def getCurrentWordle() -> int:
     return int((date.today()-date(2021, 6, 19)).days)
@@ -407,6 +410,7 @@ def rankings_by_games_played(message, n: int) -> str:
         i = 0
         while i != len(scoresInactive):
             scoreboard += f"\n{i + 1}. {scoresInactive[i][0]} ({scoresInactive[i][1][1]})"
+            scoreboard += f"Last Played: {getLastPlayed(scoresInactive[i][1])} days ago."
             i += 1
 
     return scoreboard
